@@ -500,21 +500,7 @@ def teacher_tab_attendance_records():
             width="stretch"
         )
 
-    st.divider()
 
-    # 3. Interactive Analytics & Charts
-    st.subheader("📊 Interactive Attendance Charts")
-    ch1, ch2 = st.columns(2)
-
-    with ch1:
-        st.markdown("**Session Attendance Trend (Present vs Absent)**")
-        session_trend = df.groupby(['Date/Time', 'Status']).size().unstack(fill_value=0)
-        st.bar_chart(session_trend)
-
-    with ch2:
-        st.markdown("**Student Attendance Rates (%)**")
-        chart_summary = student_summary.set_index('Student Name')['Attendance %']
-        st.bar_chart(chart_summary)
 
     # 4. At-Risk Students Warning (< 75% Attendance)
     at_risk = student_summary[student_summary['Attendance %'] < 75.0]
