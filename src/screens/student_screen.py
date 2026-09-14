@@ -7,11 +7,12 @@ from src.components.footer import footer_dashboard
 from PIL import Image
 import numpy as np
 from src.pipelines.face_pipeline import predict_attendance, get_face_embeddings, train_classifier
-from src.database.db import get_all_students, create_student, student_login, get_student_subjects, get_student_attendance, unenroll_student_to_subject
+from src.database.db import get_all_students, create_student, student_login, get_student_subjects, get_student_attendance, unenroll_student_to_subject, get_student_attendance_issues
 import time
 
 from src.components.dialog_enroll import enroll_dialog
 from src.components.subject_card import subject_card
+from src.components.dialog_raise_issue import raise_issue_dialog
 
 def student_dashboard():
     student_data = st.session_state.student_data
@@ -83,6 +84,52 @@ def student_dashboard():
                 ],
                 footer_callback=unenroll_button
             )
+
+    st.divider()
+
+    # --- ATTENDANCE NOTIFICATIONS & ISSUES SECTION ---
+    st.header('🔔 Attendance Notifications & Session Claims')
+    st.caption('View session attendance alerts. If you were present but unrecognized in class, raise an issue for teacher review.')
+
+    issues = get_student_attendance_issues(student_id)
+    issue_map = {i.get('session_id'): i for i in issues if i.get('session_id')}
+
+    if logs:
+        # Group logs by session_id or timestamp
+        for log in reversed(logs[-8:]):
+            sub = log.get('subjects') or {}
+            sess_id = log.get('session_id', 'N/A')
+            sub_id = log.get('subject_id')
+            sub_name = sub.get('name', 'Course')
+            ts = log.get('timestamp', 'N/A')
+            is_present = log.get('is_present')
+
+            with st.container(border=True):
+                col_info, col_action = st.columns([3, 1], vertical_alignment='center')
+                with col_info:
+                    status_badge = "✅ **PRESENT**" if is_present else "❌ **UNRECOGNIZED / ABSENT**"
+                    st.markdown(f"**{sub_name}** | Session #{sess_id} | {status_badge}")
+                    st.caption(f"Recorded at: {ts}")
+
+                with col_action:
+                    if is_present:
+                        st.success("Attendance Verified")
+                    else:
+                        existing_issue = issue_map.get(sess_id)
+                        if existing_issue:
+                            st_val = existing_issue.get('status', 'pending')
+                            if st_val == 'approved':
+                                st.success("✅ Issue Approved! Marked Present")
+                            elif st_val == 'rejected':
+                                st.error("❌ Issue Rejected")
+                            else:
+                                st.warning("⏳ Issue Pending Review")
+                        else:
+                            if st.button("⚠️ Raise Issue", key=f"raise_{sess_id}_{sub_id}", type="secondary"):
+                                raise_issue_dialog(sess_id, sub_id, sub_name, student_id, student_data.get('name'))
+    else:
+        st.info("No attendance records or session notifications yet.")
+
     footer_dashboard()
 
 

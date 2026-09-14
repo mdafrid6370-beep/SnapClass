@@ -163,4 +163,73 @@ def get_session_attendance(session_id):
     response = supabase.table("attendance_logs").select("*, students(*), subjects(*)").eq("session_id", session_id).execute()
     return response.data
 
+# ----------------------------------------------------
+# Attendance Issues & Dispute Functions
+# ----------------------------------------------------
+
+def create_attendance_issue(session_id, subject_id, student_id, student_name, reason="Unrecognized in session"):
+    data = {
+        "session_id": session_id,
+        "subject_id": subject_id,
+        "student_id": str(student_id),
+        "student_name": student_name,
+        "reason": reason,
+        "status": "pending",
+        "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    }
+    try:
+        res = supabase.table("attendance_issues").insert(data).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        if "local_attendance_issues" not in st.session_state:
+            st.session_state.local_attendance_issues = []
+        data["issue_id"] = len(st.session_state.local_attendance_issues) + 1
+        st.session_state.local_attendance_issues.append(data)
+        return data
+
+def get_student_attendance_issues(student_id):
+    try:
+        res = supabase.table("attendance_issues").select("*, subjects(*)").eq("student_id", str(student_id)).execute()
+        return res.data or []
+    except Exception:
+        all_issues = st.session_state.get("local_attendance_issues", [])
+        return [i for i in all_issues if str(i.get("student_id")) == str(student_id)]
+
+def get_teacher_attendance_issues(teacher_id):
+    try:
+        res = supabase.table("attendance_issues").select("*, subjects!inner(*), students(*)").eq("subjects.teacher_id", teacher_id).execute()
+        return res.data or []
+    except Exception:
+        all_issues = st.session_state.get("local_attendance_issues", [])
+        subjects = get_teacher_subjects(teacher_id)
+        teacher_sub_ids = [s.get('subject_id') for s in subjects]
+        return [i for i in all_issues if i.get('subject_id') in teacher_sub_ids]
+
+def resolve_attendance_issue(issue_id, status, session_id, student_id, subject_id):
+    now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    try:
+        supabase.table("attendance_issues").update({"status": status}).eq("issue_id", issue_id).execute()
+    except Exception:
+        all_issues = st.session_state.get("local_attendance_issues", [])
+        for i in all_issues:
+            if i.get("issue_id") == issue_id:
+                i["status"] = status
+
+    if status == "approved" and session_id and student_id:
+        try:
+            existing = supabase.table("attendance_logs").select("*").eq("session_id", session_id).eq("student_id", str(student_id)).execute()
+            if existing.data:
+                supabase.table("attendance_logs").update({"is_present": True, "timestamp": now_str}).eq("session_id", session_id).eq("student_id", str(student_id)).execute()
+            else:
+                log_entry = {
+                    "session_id": session_id,
+                    "student_id": str(student_id),
+                    "subject_id": subject_id,
+                    "timestamp": now_str,
+                    "is_present": True
+                }
+                supabase.table("attendance_logs").insert([log_entry]).execute()
+        except Exception:
+            pass
+
 

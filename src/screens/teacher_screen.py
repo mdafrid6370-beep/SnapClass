@@ -8,7 +8,8 @@ from src.components.subject_card import subject_card
 from src.database.db import (
     check_teacher_exists, create_teacher, teacher_login, get_teacher_subjects,
     get_attendance_for_teacher, create_attendance_session, get_active_session,
-    end_attendance_session, end_all_active_sessions_for_teacher, get_session_attendance
+    end_attendance_session, end_all_active_sessions_for_teacher, get_session_attendance,
+    get_teacher_attendance_issues, resolve_attendance_issue
 )
 from src.components.dialog_create_subject import create_subject_dialog
 from src.components.dialog_share_subject import share_subject_dialog
@@ -86,6 +87,53 @@ def teacher_dashboard():
             if 'teacher_data' in st.session_state:
                 del st.session_state.teacher_data 
             st.rerun()
+
+    st.space()
+
+    if "current_teacher_tab" not in st.session_state:
+        st.session_state.current_teacher_tab = 'take_attendance'
+    
+    # Calculate pending disputes count for badge
+    teacher_issues = get_teacher_attendance_issues(teacher_id)
+    pending_count = len([i for i in teacher_issues if i.get('status') == 'pending'])
+    dispute_label = f"Disputes ({pending_count})" if pending_count > 0 else "Disputes & Issues"
+
+    tab1, tab2, tab3, tab4 = st.columns(4)
+
+    with tab1:
+        type1 = "primary" if st.session_state.current_teacher_tab == 'take_attendance' else "tertiary"
+        if st.button('Take Attendance', type=type1, width='stretch', icon=':material/ar_on_you:'):
+            st.session_state.current_teacher_tab = 'take_attendance'
+            st.rerun()
+
+    with tab2:
+        type2 = "primary" if st.session_state.current_teacher_tab == 'manage_subjects' else "tertiary"
+        if st.button('Manage Subjects', type=type2, width='stretch', icon=':material/book_ribbon:'):
+            st.session_state.current_teacher_tab = 'manage_subjects'
+            st.rerun()
+
+    with tab3:
+        type3 = "primary" if st.session_state.current_teacher_tab == 'attendance_records' else "tertiary"
+        if st.button('Attendance Records', type=type3, width='stretch', icon=':material/cards_stack:'):
+            st.session_state.current_teacher_tab = 'attendance_records'
+            st.rerun()
+
+    with tab4:
+        type4 = "primary" if st.session_state.current_teacher_tab == 'attendance_issues' else "tertiary"
+        if st.button(dispute_label, type=type4, width='stretch', icon=':material/report_problem:'):
+            st.session_state.current_teacher_tab = 'attendance_issues'
+            st.rerun()
+
+    st.divider()
+
+    if st.session_state.current_teacher_tab == "take_attendance":
+        teacher_tab_take_attendance()
+    if st.session_state.current_teacher_tab == "manage_subjects":
+        teacher_tab_manage_subjects()
+    if st.session_state.current_teacher_tab == "attendance_records":
+        teacher_tab_attendance_records()
+    if st.session_state.current_teacher_tab == "attendance_issues":
+        teacher_tab_attendance_issues()
 
 
 
@@ -648,3 +696,68 @@ def teacher_screen_register():
             st.session_state.teacher_login_type = 'login'
 
     footer_dashboard()
+
+
+def teacher_tab_attendance_issues():
+    st.header('📩 Student Attendance Disputes & Issues')
+    st.caption('Review student claims for unrecognized attendance during completed class sessions.')
+
+    teacher_id = st.session_state.teacher_data['teacher_id']
+    issues = get_teacher_attendance_issues(teacher_id)
+
+    if not issues:
+        st.info("No attendance disputes or student issues reported yet.")
+        return
+
+    pending_issues = [i for i in issues if i.get('status') == 'pending']
+    resolved_issues = [i for i in issues if i.get('status') != 'pending']
+
+    if pending_issues:
+        st.subheader(f"⚠️ Pending Student Claims ({len(pending_issues)})")
+        for issue in pending_issues:
+            issue_id = issue.get('issue_id')
+            student_name = issue.get('student_name', 'Student')
+            student_id = issue.get('student_id', '')
+            session_id = issue.get('session_id')
+            subject_id = issue.get('subject_id')
+            reason = issue.get('reason', 'No detail provided')
+            ts = issue.get('timestamp', 'N/A')
+
+            sub = issue.get('subjects') or {}
+            sub_name = sub.get('name', 'Subject')
+
+            with st.container(border=True):
+                c_info, c_action1, c_action2 = st.columns([3, 1, 1], vertical_alignment='center')
+                with c_info:
+                    st.markdown(f"**{student_name}** (ID: {student_id}) — **{sub_name}**")
+                    st.markdown(f"**Session ID:** #{session_id} | **Note:** *\"{reason}\"*")
+                    st.caption(f"Filed at: {ts}")
+
+                with c_action1:
+                    if st.button("✅ Approve", key=f"app_{issue_id}", type="primary", width="stretch"):
+                        resolve_attendance_issue(issue_id, "approved", session_id, student_id, subject_id)
+                        st.toast(f"Approved attendance for {student_name}!")
+                        st.rerun()
+
+                with c_action2:
+                    if st.button("❌ Reject", key=f"rej_{issue_id}", type="secondary", width="stretch"):
+                        resolve_attendance_issue(issue_id, "rejected", session_id, student_id, subject_id)
+                        st.toast(f"Rejected issue for {student_name}.")
+                        st.rerun()
+
+    if resolved_issues:
+        st.divider()
+        st.subheader("📋 Resolved Disputes History")
+        res_data = []
+        for r in resolved_issues:
+            sub = r.get('subjects') or {}
+            res_data.append({
+                "Date/Time": r.get('timestamp', 'N/A'),
+                "Student Name": r.get('student_name'),
+                "Student ID": r.get('student_id'),
+                "Subject": sub.get('name', 'N/A'),
+                "Session ID": r.get('session_id'),
+                "Reason": r.get('reason'),
+                "Status": "✅ Approved (Present)" if r.get('status') == 'approved' else "❌ Rejected"
+            })
+        st.dataframe(pd.DataFrame(res_data), hide_index=True, width="stretch")
