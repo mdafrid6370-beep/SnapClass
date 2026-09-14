@@ -1,0 +1,24 @@
+streamlit
+# Utilitites 
+numpy
+pandas
+
+# FACE RECOGNITION
+scikit-learn
+insightface
+onnxruntime
+setuptools<70.0.0
+
+
+supabase
+bcrypt
+
+
+
+segno
+pillow
+
+# WEBRTC & STREAMING
+streamlit-webrtc
+av
+opencv-python-headless
