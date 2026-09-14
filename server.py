@@ -219,6 +219,97 @@ HTML_LANDING_PAGE = """
             color: var(--secondary);
             text-decoration: none;
         }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+                padding: 1.5rem 4%;
+            }
+
+            .logo-box {
+                justify-content: center;
+            }
+
+            nav {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .hero {
+                padding: 2.5rem 4% 2rem 4%;
+            }
+
+            .hero h2 {
+                font-size: 2.2rem;
+                margin-bottom: 1rem;
+            }
+
+            .hero p {
+                font-size: 1.05rem;
+                margin-bottom: 1.8rem;
+            }
+
+            .hero-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .hero-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+                padding: 2rem 4%;
+                gap: 18px;
+            }
+
+            .card {
+                padding: 22px;
+            }
+
+            .api-content {
+                flex-direction: column;
+                text-align: center;
+                align-items: center;
+            }
+
+            .api-content div {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .api-banner {
+                padding: 2rem 4%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero h2 {
+                font-size: 1.8rem;
+            }
+
+            .logo-box img {
+                height: 48px;
+            }
+
+            .logo-box h1 {
+                font-size: 1.4rem;
+            }
+
+            .btn {
+                padding: 10px 18px;
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 <body>
