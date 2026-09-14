@@ -92,6 +92,24 @@ def style_base_layout():
                 color: #E0E3FF !important;
                 font-family: 'Outfit', sans-serif !important;
             }
+
+            /* Dialog modal text styling */
+            div[data-testid="stDialog"] *,
+            div[role="dialog"] *,
+            div[data-baseweb="modal"] * {
+                color: #E0E3FF !important;
+                font-family: 'Outfit', sans-serif !important;
+            }
+
+            div[data-testid="stDialog"] button *,
+            div[role="dialog"] button * {
+                color: white !important;
+            }
+
+            div[data-testid="stDialog"] button[kind="tertiary"] *,
+            div[role="dialog"] button[kind="tertiary"] * {
+                color: #E0E3FF !important;
+            }
                 
 
             button, button *, button p, button span, button div {
