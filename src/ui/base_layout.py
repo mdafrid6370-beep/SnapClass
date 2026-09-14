@@ -93,22 +93,35 @@ def style_base_layout():
                 font-family: 'Outfit', sans-serif !important;
             }
 
-            /* Dialog modal text styling */
-            div[data-testid="stDialog"] *,
-            div[role="dialog"] *,
-            div[data-baseweb="modal"] * {
-                color: #E0E3FF !important;
+            /* High-specificity Dialog modal text styling */
+            [data-baseweb="modal"] h1, [data-baseweb="modal"] h2, [data-baseweb="modal"] h3, [data-baseweb="modal"] h4,
+            [data-baseweb="modal"] p, [data-baseweb="modal"] span, [data-baseweb="modal"] label, [data-baseweb="modal"] div,
+            [data-baseweb="modal"] div[data-testid="stMarkdownContainer"] p,
+            [data-baseweb="modal"] div[data-testid="stWidgetLabel"] label,
+            [data-baseweb="modal"] div[data-testid="stWidgetLabel"] p,
+            [data-testid="stDialog"] h1, [data-testid="stDialog"] h2, [data-testid="stDialog"] h3, [data-testid="stDialog"] h4,
+            [data-testid="stDialog"] p, [data-testid="stDialog"] span, [data-testid="stDialog"] label, [data-testid="stDialog"] div,
+            [data-testid="stDialog"] div[data-testid="stMarkdownContainer"] p,
+            [data-testid="stDialog"] div[data-testid="stWidgetLabel"] label,
+            [data-testid="stDialog"] div[data-testid="stWidgetLabel"] p,
+            [data-testid="stModal"] h1, [data-testid="stModal"] h2, [data-testid="stModal"] h3, [data-testid="stModal"] h4,
+            [data-testid="stModal"] p, [data-testid="stModal"] span, [data-testid="stModal"] label, [data-testid="stModal"] div,
+            [data-testid="stModal"] div[data-testid="stMarkdownContainer"] p,
+            [data-testid="stModal"] div[data-testid="stWidgetLabel"] label,
+            [data-testid="stModal"] div[data-testid="stWidgetLabel"] p,
+            [role="dialog"] h1, [role="dialog"] h2, [role="dialog"] h3, [role="dialog"] h4,
+            [role="dialog"] p, [role="dialog"] span, [role="dialog"] label, [role="dialog"] div,
+            [role="dialog"] div[data-testid="stMarkdownContainer"] p,
+            [role="dialog"] div[data-testid="stWidgetLabel"] label,
+            [role="dialog"] div[data-testid="stWidgetLabel"] p {
+                color: #FFFFFF !important;
                 font-family: 'Outfit', sans-serif !important;
             }
 
-            div[data-testid="stDialog"] button *,
-            div[role="dialog"] button * {
+            [data-baseweb="modal"] button *,
+            [data-testid="stDialog"] button *,
+            [role="dialog"] button * {
                 color: white !important;
-            }
-
-            div[data-testid="stDialog"] button[kind="tertiary"] *,
-            div[role="dialog"] button[kind="tertiary"] * {
-                color: #E0E3FF !important;
             }
                 
 
