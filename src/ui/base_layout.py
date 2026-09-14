@@ -86,6 +86,12 @@ def style_base_layout():
             button[data-baseweb="tab"][aria-selected="true"] p, button[data-baseweb="tab"][aria-selected="true"] span {
                 color: #EB459E !important;
             }
+
+            /* Toast popup notification text styling */
+            div[data-testid="stToast"], div[data-testid="stToast"] *, div[data-testid="stToast"] p, div[data-testid="stToast"] span, div[data-testid="stToast"] div {
+                color: #E0E3FF !important;
+                font-family: 'Outfit', sans-serif !important;
+            }
                 
 
             button{
