@@ -94,32 +94,48 @@ def style_base_layout():
             }
                 
 
-            button{
+            button, button *, button p, button span, button div {
+                border-radius: 1.5rem !important;
+                background-color: #5865F2;
+                color: white !important;
+            }
+
+            button {
                 border-radius: 1.5rem !important;
                 background-color: #5865F2 !important;
                 color: white !important;
                 padding: 10px 20px !important;
                 border: none !important;
                 transition: transform 0.25s ease-in-out !important;
-                }
+            }
 
-            button[kind="secondary"]{
+            button[kind="secondary"], button[kind="secondary"] *, button[kind="secondary"] p, button[kind="secondary"] span {
+                background-color: #EB459E;
+                color: white !important;
+            }
+
+            button[kind="secondary"] {
                 border-radius: 1.5rem !important;
                 background-color: #EB459E !important;
                 color: white !important;
                 padding: 10px 20px !important;
                 border: none !important;
                 transition: transform 0.25s ease-in-out !important;
-                }
+            }
 
-            button[kind="tertiary"]{
+            button[kind="tertiary"], button[kind="tertiary"] *, button[kind="tertiary"] p, button[kind="tertiary"] span, button[kind="tertiary"] div {
+                background-color: black;
+                color: #E0E3FF !important;
+            }
+
+            button[kind="tertiary"] {
                 border-radius: 1.5rem !important;
                 background-color: black !important;
-                color: white !important;
+                color: #E0E3FF !important;
                 padding: 10px 20px !important;
                 border: none !important;
                 transition: transform 0.25s ease-in-out !important;
-                }
+            }
 
             button:hover{
                 transform :scale(1.05)}
