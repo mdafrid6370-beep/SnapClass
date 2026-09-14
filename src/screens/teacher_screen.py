@@ -395,7 +395,11 @@ def teacher_tab_take_attendance():
             ctx = webrtc_streamer(
                 key="teacher_live_attendance",
                 video_processor_factory=LiveFaceAttendanceProcessor,
-                rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+                rtc_configuration={
+                    "iceServers": [
+                        {"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302", "stun:stun.services.mozilla.com", "stun:global.stun.twilio.com:3478"]}
+                    ]
+                },
                 media_stream_constraints={"video": True, "audio": False}
             )
 
