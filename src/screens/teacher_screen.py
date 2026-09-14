@@ -8,7 +8,7 @@ from src.components.subject_card import subject_card
 from src.database.db import (
     check_teacher_exists, create_teacher, teacher_login, get_teacher_subjects,
     get_attendance_for_teacher, create_attendance_session, get_active_session,
-    end_attendance_session, get_session_attendance
+    end_attendance_session, end_all_active_sessions_for_teacher, get_session_attendance
 )
 from src.components.dialog_create_subject import create_subject_dialog
 from src.components.dialog_share_subject import share_subject_dialog
@@ -25,6 +25,30 @@ import pandas as pd
 from src.database.config import supabase
 
 
+class SessionAutoCloser:
+    def __init__(self, teacher_id, session_id=None):
+        self.teacher_id = teacher_id
+        self.session_id = session_id
+        self.is_closed = False
+
+    def close(self):
+        if not self.is_closed:
+            self.is_closed = True
+            if self.session_id:
+                try:
+                    end_attendance_session(self.session_id)
+                except Exception:
+                    pass
+            if self.teacher_id:
+                try:
+                    end_all_active_sessions_for_teacher(self.teacher_id)
+                except Exception:
+                    pass
+
+    def __del__(self):
+        self.close()
+
+
 def teacher_screen():
 
     style_background_dashboard()
@@ -36,6 +60,32 @@ def teacher_screen():
         teacher_screen_login()
     elif st.session_state.teacher_login_type == "register":
         teacher_screen_register()
+
+
+def teacher_dashboard():
+    teacher_data = st.session_state.teacher_data
+    teacher_id = teacher_data.get('teacher_id')
+    if 'teacher_session_closer' not in st.session_state:
+        st.session_state['teacher_session_closer'] = SessionAutoCloser(teacher_id)
+
+    c1, c2 = st.columns(2, vertical_alignment='center', gap='xxlarge')
+    with c1:
+        header_dashboard()
+    with c2:
+        st.subheader(f"""Welcome, {teacher_data['name']} """)
+        if st.button("Logout", type='secondary', key='loginbackbtn', shortcut="control+backspace"):
+            if teacher_id:
+                end_all_active_sessions_for_teacher(teacher_id)
+            if 'teacher_session_closer' in st.session_state:
+                try:
+                    st.session_state.teacher_session_closer.close()
+                except Exception:
+                    pass
+                del st.session_state.teacher_session_closer
+            st.session_state['is_logged_in'] = False
+            if 'teacher_data' in st.session_state:
+                del st.session_state.teacher_data 
+            st.rerun()
 
 
 
@@ -129,12 +179,17 @@ def teacher_tab_take_attendance():
             if st.button("▶️ Start Attendance Session", type="primary", width="stretch", icon=":material/play_arrow:"):
                 sess = create_attendance_session(selected_subject_id)
                 if sess:
+                    if 'teacher_session_closer' in st.session_state:
+                        st.session_state.teacher_session_closer.session_id = sess['session_id']
                     st.toast(f"Attendance Session #{sess['session_id']} Started!")
                     st.rerun()
                 else:
                     st.error("Failed to start session!")
         else:
             session_id = active_session['session_id']
+            if 'teacher_session_closer' in st.session_state:
+                st.session_state.teacher_session_closer.session_id = session_id
+
             start_ts = active_session.get('start_time', '')
             formatted_start = datetime.fromisoformat(start_ts).strftime("%I:%M %p") if start_ts else "N/A"
 
@@ -144,6 +199,8 @@ def teacher_tab_take_attendance():
             with btn_col1:
                 if st.button("⏹️ End Attendance Session", type="secondary", width="stretch", icon=":material/stop:"):
                     end_attendance_session(session_id)
+                    if 'teacher_session_closer' in st.session_state:
+                        st.session_state.teacher_session_closer.session_id = None
                     st.toast(f"Session #{session_id} Ended Successfully!")
                     st.rerun()
 

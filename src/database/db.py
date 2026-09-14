@@ -145,6 +145,20 @@ def end_attendance_session(session_id):
     response = supabase.table("attendance_sessions").update({"is_active": False, "end_time": now_str}).eq("session_id", session_id).execute()
     return response.data
 
+def end_all_active_sessions_for_teacher(teacher_id):
+    if not teacher_id:
+        return
+    try:
+        subjects = get_teacher_subjects(teacher_id)
+        if subjects:
+            now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            for s in subjects:
+                sid = s.get('subject_id')
+                if sid:
+                    supabase.table("attendance_sessions").update({"is_active": False, "end_time": now_str}).eq("subject_id", sid).eq("is_active", True).execute()
+    except Exception:
+        pass
+
 def get_session_attendance(session_id):
     response = supabase.table("attendance_logs").select("*, students(*), subjects(*)").eq("session_id", session_id).execute()
     return response.data
