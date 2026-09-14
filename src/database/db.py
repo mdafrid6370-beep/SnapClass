@@ -26,13 +26,25 @@ def create_teacher(username, password, name):
     return response.data
 
 
+def get_teacher_by_username(username):
+    try:
+        response = supabase.table("teachers").select("*").eq("username", username).execute()
+        return response.data[0] if response.data else None
+    except Exception:
+        return None
+
 def teacher_login(username, password):
-    response = supabase.table("teachers").select("*").eq("username", username).execute()
-    if response.data:
-        teacher = response.data[0]
-        if check_pass(password, teacher['password']):
-            return teacher
+    teacher = get_teacher_by_username(username)
+    if teacher and check_pass(password, teacher['password']):
+        return teacher
     return None
+
+def get_student_by_id(student_id):
+    try:
+        response = supabase.table("students").select("*").eq("student_id", str(student_id)).execute()
+        return response.data[0] if response.data else None
+    except Exception:
+        return None
 
 
 def get_all_students():

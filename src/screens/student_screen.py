@@ -23,8 +23,11 @@ def student_dashboard():
     with c2:
         st.subheader(f"""Welcome, {student_data['name']} """)
         if st.button("Logout", type='secondary', key='loginbackbtn', shortcut="control+backspace"):
+            st.query_params.clear()
             st.session_state['is_logged_in'] = False
-            del st.session_state.student_data 
+            st.session_state['login_type'] = None
+            if 'student_data' in st.session_state:
+                del st.session_state.student_data 
             st.rerun()
 
 
@@ -173,6 +176,8 @@ def student_screen():
                     st.session_state.is_logged_in = True
                     st.session_state.user_role = 'student'
                     st.session_state.student_data = stud
+                    st.query_params["session_role"] = "student"
+                    st.query_params["session_id"] = str(stud['student_id'])
                     st.toast(f"Welcome Back, {stud['name']}!")
                     time.sleep(1)
                     st.rerun()
@@ -208,6 +213,8 @@ def student_screen():
                             st.session_state.is_logged_in = True
                             st.session_state.user_role = 'student'
                             st.session_state.student_data = student
+                            st.query_params["session_role"] = "student"
+                            st.query_params["session_id"] = str(student['student_id'])
                             st.toast(f'Welcome Back {student["name"]}')
                             time.sleep(1)
                             st.rerun()
@@ -252,6 +259,8 @@ def student_screen():
                             st.session_state.is_logged_in = True
                             st.session_state.user_role = 'student'
                             st.session_state.student_data = response_data[0]
+                            st.query_params["session_role"] = "student"
+                            st.query_params["session_id"] = str(response_data[0]['student_id'])
                             st.toast(f'Profile Created! Welcome {reg_name}!')
                             time.sleep(1)
                             st.rerun()

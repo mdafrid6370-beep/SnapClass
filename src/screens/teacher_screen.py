@@ -75,6 +75,7 @@ def teacher_dashboard():
     with c2:
         st.subheader(f"""Welcome, {teacher_data['name']} """)
         if st.button("Logout", type='secondary', key='loginbackbtn', shortcut="control+backspace"):
+            st.query_params.clear()
             if teacher_id:
                 end_all_active_sessions_for_teacher(teacher_id)
             if 'teacher_session_closer' in st.session_state:
@@ -84,6 +85,7 @@ def teacher_dashboard():
                     pass
                 del st.session_state.teacher_session_closer
             st.session_state['is_logged_in'] = False
+            st.session_state['login_type'] = None
             if 'teacher_data' in st.session_state:
                 del st.session_state.teacher_data 
             st.rerun()
@@ -604,6 +606,8 @@ def login_teacher(username, password):
         st.session_state.user_role ='teacher'
         st.session_state.teacher_data = teacher
         st.session_state.is_logged_in = True
+        st.query_params["session_role"] = "teacher"
+        st.query_params["session_user"] = str(teacher['username'])
         return True
     
 
