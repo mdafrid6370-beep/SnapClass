@@ -320,7 +320,7 @@ HTML_LANDING_PAGE = """
             <h1>SNAP<br/>CLASS</h1>
         </div>
         <nav>
-            <a href="http://localhost:8501" class="btn btn-primary">🚀 Launch App</a>
+            <a href="https://snappyclass.streamlit.app/" target="_blank" class="btn btn-primary">🚀 Launch App</a>
             <a href="/docs" class="btn btn-dark">⚡ OpenAPI Docs</a>
         </nav>
     </header>
@@ -332,7 +332,7 @@ HTML_LANDING_PAGE = """
             live WebRTC video streams, automated session controls, and student dispute notifications.
         </p>
         <div class="hero-actions">
-            <a href="http://localhost:8501" class="btn btn-primary" style="font-size: 1.1rem; padding: 15px 32px;">
+            <a href="https://snappyclass.streamlit.app/" target="_blank" class="btn btn-primary" style="font-size: 1.1rem; padding: 15px 32px;">
                 🎓 Student & Teacher Portals
             </a>
             <a href="https://github.com/mdafrid6370-beep/SnapClass" target="_blank" class="btn btn-secondary" style="font-size: 1.1rem; padding: 15px 32px;">
