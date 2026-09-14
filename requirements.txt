@@ -22,3 +22,8 @@ pillow
 streamlit-webrtc
 av
 opencv-python-headless
+
+# FASTAPI LANDING PAGE & API
+fastapi
+uvicorn
+jinja2
