@@ -96,7 +96,15 @@ def teacher_dashboard():
     # Calculate pending disputes count for badge
     teacher_issues = get_teacher_attendance_issues(teacher_id)
     pending_count = len([i for i in teacher_issues if i.get('status') == 'pending'])
-    dispute_label = f"Disputes ({pending_count})" if pending_count > 0 else "Disputes & Issues"
+    
+    if pending_count > 0:
+        if "dispute_toast_shown" not in st.session_state:
+            st.toast(f"🔔 You have {pending_count} pending student attendance dispute(s)!")
+            st.session_state.dispute_toast_shown = True
+        
+        st.warning(f"🔔 **Pending Student Disputes**: You have **{pending_count} pending claim(s)** from students who were marked unrecognized. Click **'Review Disputes'** to approve or reject.")
+
+    dispute_label = f"🔔 Disputes ({pending_count} New)" if pending_count > 0 else "Disputes & Issues"
 
     tab1, tab2, tab3, tab4 = st.columns(4)
 
@@ -119,7 +127,13 @@ def teacher_dashboard():
             st.rerun()
 
     with tab4:
-        type4 = "primary" if st.session_state.current_teacher_tab == 'attendance_issues' else "tertiary"
+        if st.session_state.current_teacher_tab == 'attendance_issues':
+            type4 = "primary"
+        elif pending_count > 0:
+            type4 = "secondary"
+        else:
+            type4 = "tertiary"
+
         if st.button(dispute_label, type=type4, width='stretch', icon=':material/report_problem:'):
             st.session_state.current_teacher_tab = 'attendance_issues'
             st.rerun()
