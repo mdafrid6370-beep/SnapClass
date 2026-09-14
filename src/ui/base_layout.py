@@ -73,8 +73,18 @@ def style_base_layout():
                 color: #2E1065 !important;
             }
                 
-            h3, h4, p {
-                font-family: 'Outfit', sans-serif;    
+            h3, h4, h5, h6, p, label, .stCaption, [data-testid="stCaptionContainer"], div[data-testid="stMarkdownContainer"] p, div[data-testid="stWidgetLabel"] p, div[data-testid="stWidgetLabel"] label {
+                font-family: 'Outfit', sans-serif !important;    
+                color: #000000 !important;
+            }
+
+            button[data-baseweb="tab"] p, button[data-baseweb="tab"] div, button[data-baseweb="tab"] span {
+                color: #000000 !important;
+                font-family: 'Outfit', sans-serif !important;
+            }
+
+            button[data-baseweb="tab"][aria-selected="true"] p, button[data-baseweb="tab"][aria-selected="true"] span {
+                color: #EB459E !important;
             }
                 
 
