@@ -189,9 +189,17 @@ def student_screen():
     # --- TAB 2: FACEID LOGIN ---
     with login_tab2:
         st.subheader("Login using FaceID")
-        st.caption("Position your face in the center of the camera to verify your identity.")
+        st.caption("Position your face in the center of the camera or upload a face snapshot to verify your identity.")
         
-        photo_source = st.camera_input("Position your face in the center", key="student_faceid_cam")
+        cam_col, upload_col = st.columns(2)
+        with cam_col:
+            st.caption("📷 **Option 1: Live Camera**")
+            photo_cam = st.camera_input("Position face in center", key="student_faceid_cam")
+        with upload_col:
+            st.caption("📁/📷 **Option 2: Take Photo or Upload File**")
+            photo_file = st.file_uploader("Upload or Snap Face Photo", type=["jpg", "jpeg", "png"], key="student_faceid_file")
+
+        photo_source = photo_cam or photo_file
 
         if photo_source:
             img = np.array(Image.open(photo_source))
@@ -265,8 +273,16 @@ def student_screen():
             reg_pass = st.text_input("Create Password", type='password', placeholder="Enter password", key="reg_pass")
             reg_pass_confirm = st.text_input("Confirm Password", type='password', placeholder="Confirm password", key="reg_pass_confirm")
             
-            st.caption("Optional: Take a face snapshot to enable AI classroom attendance matching.")
-            reg_photo = st.camera_input("Capture Face Snapshot for Classroom Attendance", key="reg_camera")
+            st.caption("Optional: Take or upload a face snapshot to enable AI classroom attendance matching.")
+            reg_cam_col, reg_file_col = st.columns(2)
+            with reg_cam_col:
+                st.caption("📷 **Option 1: Live Camera**")
+                reg_photo_cam = st.camera_input("Capture Face Snapshot", key="reg_camera")
+            with reg_file_col:
+                st.caption("📁/📷 **Option 2: Take Photo or Upload File**")
+                reg_photo_file = st.file_uploader("Upload or Snap Face Photo", type=["jpg", "jpeg", "png"], key="reg_file_upload")
+            
+            reg_photo = reg_photo_cam or reg_photo_file
 
             if st.button('Register & Create Account', type='primary', width="stretch"):
                 if not reg_student_id or not reg_name or not reg_pass:
