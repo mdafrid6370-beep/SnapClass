@@ -68,22 +68,29 @@ def student_dashboard():
         sid = sub['subject_id']
 
 
-        stats = stats_map.get(sid,{"total":0, "attended": 0} )
+        stats = stats_map.get(sid, {"total": 0, "attended": 0})
+        tot = stats['total']
+        att = stats['attended']
+        pct = round((att / tot) * 100, 1) if tot > 0 else 100.0
+        
+        status_badge = f"{pct}% (Eligible)" if pct >= 75.0 else f"{pct}% (Shortage Alert)"
+        status_icon = "🟢" if pct >= 75.0 else "🔴"
+
         def unenroll_button():
-                if st.button("Unenroll from this course", type='tertiary', width='stretch', icon=':material/delete_forever:'):
-                    unenroll_student_to_subject(student_id, sid)
-                    st.toast(f'Unenrolled from {sub["name"]} successfully!')
-                    st.rerun()
+            if st.button("Unenroll from this course", type='tertiary', width='stretch', icon=':material/delete_forever:', key=f"unenroll_{sid}"):
+                unenroll_student_to_subject(student_id, sid)
+                st.toast(f'Unenrolled from {sub["name"]} successfully!')
+                st.rerun()
 
         with cols[i % 2]:
-
             subject_card(
                 name = sub['name'],
-                code =sub['subject_code'],
+                code = sub['subject_code'],
                 section = sub['section'],
                 stats = [
-                    ('📅', 'Total', stats['total']),
-                    ('✅', 'Attended', stats['attended']),
+                    ('📅', 'Total Sessions', tot),
+                    ('✅', 'Attended', att),
+                    (status_icon, 'Attendance', status_badge),
                 ],
                 footer_callback=unenroll_button
             )
