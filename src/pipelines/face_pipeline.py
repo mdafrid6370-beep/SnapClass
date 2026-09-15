@@ -5,6 +5,7 @@ import insightface
 from insightface.app import FaceAnalysis
 import numpy as np
 import streamlit as st
+from PIL import Image, ImageOps
 
 from src.database.db import get_all_students
 
@@ -15,13 +16,37 @@ def load_insightface_app():
     app.prepare(ctx_id=0, det_size=(640, 640))
     return app
 
-def get_face_embeddings(image_np):
-    app = load_insightface_app()
+
+def preprocess_image(image_input):
+    """
+    Ensures image is correctly oriented according to EXIF data and converted to BGR NumPy array.
+    Fixes upside-down/sideways face detection issues on mobile phones.
+    """
+    if isinstance(image_input, Image.Image):
+        img = ImageOps.exif_transpose(image_input)
+        image_np = np.array(img)
+    elif isinstance(image_input, np.ndarray):
+        image_np = image_input
+    else:
+        img = Image.open(image_input)
+        img = ImageOps.exif_transpose(img)
+        image_np = np.array(img)
+
     # Convert RGB to BGR for InsightFace if 3-channel image
     if len(image_np.shape) == 3 and image_np.shape[2] == 3:
         image_bgr = image_np[:, :, ::-1]
+    elif len(image_np.shape) == 3 and image_np.shape[2] == 4:
+        # RGBA to BGR
+        image_bgr = image_np[:, :, :3][:, :, ::-1]
     else:
         image_bgr = image_np
+
+    return image_bgr
+
+
+def get_face_embeddings(image_input):
+    app = load_insightface_app()
+    image_bgr = preprocess_image(image_input)
 
     faces = app.get(image_bgr)
     encodings = []
@@ -36,6 +61,7 @@ def get_face_embeddings(image_np):
 
     return encodings
 
+
 @st.cache_resource
 def get_student_face_vectors():
     X = []
@@ -48,18 +74,31 @@ def get_student_face_vectors():
     
     for student in student_db:
         embedding = student.get('face_embedding')
-        if embedding:
-            if isinstance(embedding, str):
-                try:
-                    embedding = json.loads(embedding)
-                except Exception:
-                    continue
-            arr = np.array(embedding, dtype=np.float64)
+        sid = student.get('student_id')
+        if not embedding or not sid:
+            continue
+            
+        if isinstance(embedding, str):
+            try:
+                embedding = json.loads(embedding)
+            except Exception:
+                continue
+                
+        # Support single 512-d vector OR list of multiple 512-d vectors per student
+        vector_list = []
+        if isinstance(embedding, list) and len(embedding) > 0:
+            if isinstance(embedding[0], list):
+                vector_list = embedding
+            elif isinstance(embedding[0], (int, float)):
+                vector_list = [embedding]
+
+        for vec in vector_list:
+            arr = np.array(vec, dtype=np.float64)
             norm = np.linalg.norm(arr)
             if norm > 0:
                 arr = arr / norm
-            X.append(arr)
-            y.append(student.get('student_id'))
+                X.append(arr)
+                y.append(sid)
 
     if len(X) == 0:
         return None
@@ -71,6 +110,7 @@ def train_classifier():
     st.cache_resource.clear()
     vectors = get_student_face_vectors()
     return bool(vectors)
+
 
 def predict_attendance(class_image_np):
     encodings = get_face_embeddings(class_image_np)
@@ -86,8 +126,8 @@ def predict_attendance(class_image_np):
     y_train = vector_data['y']
 
     all_students = sorted(list(set(y_train)))
-    # Cosine similarity threshold for InsightFace ArcFace (range -1.0 to 1.0; >= 0.45 is match)
-    similarity_threshold = 0.45
+    # Cosine similarity threshold for InsightFace ArcFace (range -1.0 to 1.0; >= 0.40 is match)
+    similarity_threshold = 0.40
 
     for encoding in encodings:
         encoding_arr = np.array(encoding, dtype=np.float64)
@@ -101,7 +141,9 @@ def predict_attendance(class_image_np):
 
         if max_similarity >= similarity_threshold:
             predicted_id = y_train[best_idx]
-            detected_student[predicted_id] = True
+            # Store best match similarity score
+            if predicted_id not in detected_student or max_similarity > detected_student[predicted_id]:
+                detected_student[predicted_id] = float(max_similarity)
 
     return detected_student, all_students, len(encodings)
 
