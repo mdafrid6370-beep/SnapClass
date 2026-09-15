@@ -273,6 +273,14 @@ def student_screen():
                             st.toast(f'Welcome Back {student["name"]}')
                             time.sleep(1)
                             st.rerun()
+                        else:
+                            st.cache_resource.clear()
+                            st.session_state["pending_reg_photo"] = photo_source
+                            st.session_state["redirect_to_tab"] = "register"
+                            st.toast("⚠️ Student profile not found in database. Redirecting to Registration...", icon="👤")
+                            st.warning("⚠️ **Student Profile Not Found!** Your record is not in the database. Redirecting you to Registration...")
+                            time.sleep(1)
+                            st.rerun()
                     else:
                         st.session_state["pending_reg_photo"] = photo_source
                         st.session_state["redirect_to_tab"] = "register"
@@ -291,7 +299,7 @@ def student_screen():
                 st.image(st.session_state.pending_reg_photo, width=180, caption="Attached Face Photo")
 
             reg_student_id = st.text_input("Application ID / Roll No", placeholder='E.g. APP1001 or 10024', key="reg_id")
-            reg_name = st.text_input("Full Name", placeholder='E.g. Hamza Rizvi', key="reg_name")
+            reg_name = st.text_input("Full Name", placeholder='E.g. MD AFRID KHAN', key="reg_name")
             reg_pass = st.text_input("Create Password", type='password', placeholder="Enter password", key="reg_pass")
             reg_pass_confirm = st.text_input("Confirm Password", type='password', placeholder="Confirm password", key="reg_pass_confirm")
             
