@@ -167,12 +167,28 @@ def student_screen():
 
     tab_options = ["🔑 Password Login", "👤 FaceID Login", "📝 Register New Student"]
     
-    if "student_portal_nav_radio" not in st.session_state:
-        st.session_state["student_portal_nav_radio"] = "👤 FaceID Login"
+    # Process pre-rerun tab redirection before st.radio instantiation to prevent StreamlitWidgetAlreadyInstantiatedError
+    if st.session_state.get("redirect_to_tab"):
+        target = st.session_state.pop("redirect_to_tab")
+        if target == "register":
+            st.session_state["active_student_portal_tab"] = "register"
+            st.session_state["student_portal_nav_radio"] = "📝 Register New Student"
+
+    if "active_student_portal_tab" not in st.session_state:
+        st.session_state["active_student_portal_tab"] = "faceid"
+
+    nav_index = 1
+    if st.session_state.get("active_student_portal_tab") == "password":
+        nav_index = 0
+    elif st.session_state.get("active_student_portal_tab") == "faceid":
+        nav_index = 1
+    elif st.session_state.get("active_student_portal_tab") == "register":
+        nav_index = 2
 
     chosen_tab_label = st.radio(
         "Student Portal Navigation",
         tab_options,
+        index=nav_index,
         horizontal=True,
         key="student_portal_nav_radio",
         label_visibility="collapsed"
@@ -259,8 +275,7 @@ def student_screen():
                             st.rerun()
                     else:
                         st.session_state["pending_reg_photo"] = photo_source
-                        st.session_state["active_student_portal_tab"] = "register"
-                        st.session_state["student_portal_nav_radio"] = "📝 Register New Student"
+                        st.session_state["redirect_to_tab"] = "register"
                         st.toast("⚠️ Face Not Recognized! Redirecting to Registration...", icon="👤")
                         st.warning("⚠️ **Face Not Recognized!** Redirecting you to the Registration page to create your profile...")
                         time.sleep(1)
