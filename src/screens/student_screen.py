@@ -189,20 +189,21 @@ def student_screen():
     # --- TAB 2: FACEID LOGIN ---
     with login_tab2:
         st.subheader("Login using FaceID")
-        st.caption("Position your face in the center of the camera or upload a face snapshot to verify your identity.")
+        st.caption("Snap a photo using your phone's camera or select a face photo to verify your identity.")
         
         faceid_method = st.radio(
             "Select Photo Method:",
-            ["📷 Live Camera", "📁 Take Photo / Upload File"],
+            ["📱 Snap Photo / Upload File (Recommended for Mobile)", "💻 Desktop Live Camera Stream"],
+            index=0,
             horizontal=True,
             key="faceid_input_method"
         )
         
         photo_source = None
-        if faceid_method == "📷 Live Camera":
-            photo_source = st.camera_input("Position face in center", key="student_faceid_cam")
-        else:
+        if faceid_method == "📱 Snap Photo / Upload File (Recommended for Mobile)":
             photo_source = st.file_uploader("Upload or Take Photo with Phone Camera", type=["jpg", "jpeg", "png"], key="student_faceid_file")
+        else:
+            photo_source = st.camera_input("Position face in center", key="student_faceid_cam")
 
         if photo_source:
             img = np.array(Image.open(photo_source))
@@ -280,16 +281,17 @@ def student_screen():
             
             reg_method = st.radio(
                 "Select Photo Method:",
-                ["📷 Live Camera", "📁 Take Photo / Upload File"],
+                ["📱 Snap Photo / Upload File (Recommended for Mobile)", "💻 Desktop Live Camera Stream"],
+                index=0,
                 horizontal=True,
                 key="reg_input_method"
             )
             
             reg_photo = None
-            if reg_method == "📷 Live Camera":
-                reg_photo = st.camera_input("Capture Face Snapshot", key="reg_camera")
-            else:
+            if reg_method == "📱 Snap Photo / Upload File (Recommended for Mobile)":
                 reg_photo = st.file_uploader("Upload or Snap Face Photo", type=["jpg", "jpeg", "png"], key="reg_file_upload")
+            else:
+                reg_photo = st.camera_input("Capture Face Snapshot", key="reg_camera")
 
             if st.button('Register & Create Account', type='primary', width="stretch"):
                 if not reg_student_id or not reg_name or not reg_pass:
