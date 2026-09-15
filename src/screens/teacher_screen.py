@@ -534,11 +534,11 @@ def teacher_tab_attendance_records():
 
     st.divider()
 
-    # 2. CSV Export Section
+    # 2. Export Section (CSV, Excel, PDF)
     st.subheader("📥 Export Reports")
     exp1, exp2 = st.columns(2)
 
-    # Student Summary DataFrame for CSV
+    # Student Summary DataFrame
     student_summary = (
         df.groupby(['Student ID', 'Student Name', 'Subject'])
         .agg(
@@ -547,15 +547,31 @@ def teacher_tab_attendance_records():
         ).reset_index()
     )
     student_summary['Attendance %'] = (student_summary['Classes_Attended'] / student_summary['Total_Classes'] * 100).round(1)
+    student_summary['Exam Status'] = student_summary['Attendance %'].apply(lambda x: "Eligible" if x >= 75.0 else "Shortage Alert")
+
+    raw_df = df[['Date/Time', 'Subject', 'Subject Code', 'Student ID', 'Student Name', 'Status']].sort_values(by="Status", ascending=False).drop_duplicates(subset=['Date/Time', 'Subject Code', 'Student ID'], keep='first')
+
+    # Generate Excel and PDF bytes
+    from src.utils.report_generator import generate_excel_report, generate_pdf_report
+    excel_bytes = generate_excel_report(student_summary, raw_df, subject_name=selected_subject['name'])
+    pdf_bytes = generate_pdf_report(student_summary, teacher_name=teacher_data.get('name', 'Instructor'), subject_name=selected_subject['name'])
 
     with exp1:
-        raw_df = df[['Date/Time', 'Subject', 'Subject Code', 'Student ID', 'Student Name', 'Status']].sort_values(by="Status", ascending=False).drop_duplicates(subset=['Date/Time', 'Subject Code', 'Student ID'], keep='first')
         csv_raw = raw_df.to_csv(index=False)
         st.download_button(
-            label="📄 Download Detailed Attendance Logs (CSV)",
+            label="📄 Download Detailed Logs (CSV)",
             data=csv_raw,
             file_name=f"attendance_logs_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv",
+            type="tertiary",
+            width="stretch"
+        )
+        
+        st.download_button(
+            label="📗 Download Excel Summary (.xlsx)",
+            data=excel_bytes,
+            file_name=f"attendance_summary_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary",
             width="stretch"
         )
@@ -563,11 +579,20 @@ def teacher_tab_attendance_records():
     with exp2:
         csv_summary = student_summary.to_csv(index=False)
         st.download_button(
-            label="📊 Download Student Summary Report (CSV)",
+            label="📊 Download Summary Roster (CSV)",
             data=csv_summary,
             file_name=f"student_summary_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv",
-            type="secondary",
+            type="tertiary",
+            width="stretch"
+        )
+
+        st.download_button(
+            label="📕 Download Official PDF Report (.pdf)",
+            data=pdf_bytes,
+            file_name=f"official_attendance_report_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf",
+            type="primary",
             width="stretch"
         )
 

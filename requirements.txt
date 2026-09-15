@@ -2,6 +2,8 @@ streamlit
 # Utilitites 
 numpy
 pandas
+openpyxl
+reportlab
 
 # FACE RECOGNITION
 scikit-learn
