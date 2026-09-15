@@ -6,15 +6,33 @@ from insightface.app import FaceAnalysis
 import numpy as np
 import streamlit as st
 from PIL import Image, ImageOps
+import cv2
 
 from src.database.db import get_all_students
 
 
 @st.cache_resource
-def load_insightface_app():
+def load_insightface_app(det_size=(640, 640)):
     app = FaceAnalysis(name='buffalo_s', providers=['CPUExecutionProvider'])
-    app.prepare(ctx_id=0, det_size=(640, 640))
+    app.prepare(ctx_id=0, det_size=det_size)
     return app
+
+
+def apply_clahe_lighting_normalization(image_bgr):
+    """
+    Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) on Lightness channel.
+    Normalizes harsh shadows, dark room lighting, and background glare for stable face detection.
+    """
+    try:
+        lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl, a, b))
+        enhanced_bgr = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        return enhanced_bgr
+    except Exception:
+        return image_bgr
 
 
 def preprocess_image(image_input):
@@ -45,10 +63,22 @@ def preprocess_image(image_input):
 
 
 def get_face_embeddings(image_input):
-    app = load_insightface_app()
     image_bgr = preprocess_image(image_input)
 
-    faces = app.get(image_bgr)
+    # Pass 1: Standard 640x640 detection
+    app_640 = load_insightface_app(det_size=(640, 640))
+    faces = app_640.get(image_bgr)
+
+    # Pass 2: Fallback with CLAHE lighting normalization if no faces found
+    if len(faces) == 0:
+        enhanced_bgr = apply_clahe_lighting_normalization(image_bgr)
+        faces = app_640.get(enhanced_bgr)
+
+    # Pass 3: Fallback with 320x320 detection scale for close selfie crops if still no faces found
+    if len(faces) == 0:
+        app_320 = load_insightface_app(det_size=(320, 320))
+        faces = app_320.get(image_bgr)
+
     encodings = []
 
     for face in faces:
@@ -126,8 +156,8 @@ def predict_attendance(class_image_np):
     y_train = vector_data['y']
 
     all_students = sorted(list(set(y_train)))
-    # Cosine similarity threshold for InsightFace ArcFace (range -1.0 to 1.0; >= 0.40 is match)
-    similarity_threshold = 0.40
+    # Cosine similarity threshold for InsightFace ArcFace (range -1.0 to 1.0; >= 0.38 is match)
+    similarity_threshold = 0.38
 
     for encoding in encodings:
         encoding_arr = np.array(encoding, dtype=np.float64)
