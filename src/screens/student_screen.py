@@ -167,21 +167,12 @@ def student_screen():
 
     tab_options = ["🔑 Password Login", "👤 FaceID Login", "📝 Register New Student"]
     
-    if "active_student_portal_tab" not in st.session_state:
-        st.session_state.active_student_portal_tab = "faceid"
-
-    default_idx = 1
-    if st.session_state.active_student_portal_tab == "password":
-        default_idx = 0
-    elif st.session_state.active_student_portal_tab == "faceid":
-        default_idx = 1
-    elif st.session_state.active_student_portal_tab == "register":
-        default_idx = 2
+    if "student_portal_nav_radio" not in st.session_state:
+        st.session_state["student_portal_nav_radio"] = "👤 FaceID Login"
 
     chosen_tab_label = st.radio(
         "Student Portal Navigation",
         tab_options,
-        index=default_idx,
         horizontal=True,
         key="student_portal_nav_radio",
         label_visibility="collapsed"
@@ -268,10 +259,11 @@ def student_screen():
                             st.rerun()
                     else:
                         st.session_state["pending_reg_photo"] = photo_source
-                        st.session_state.active_student_portal_tab = "register"
+                        st.session_state["active_student_portal_tab"] = "register"
+                        st.session_state["student_portal_nav_radio"] = "📝 Register New Student"
                         st.toast("⚠️ Face Not Recognized! Redirecting to Registration...", icon="👤")
-                        st.warning("⚠️ **Face Not Recognized!** You don't have a registered profile yet. Redirecting you to the **Register New Student** page...")
-                        time.sleep(1.2)
+                        st.warning("⚠️ **Face Not Recognized!** Redirecting you to the Registration page to create your profile...")
+                        time.sleep(1)
                         st.rerun()
 
     # --- TAB 3: REGISTER NEW STUDENT ---
