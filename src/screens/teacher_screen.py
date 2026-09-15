@@ -400,7 +400,10 @@ def teacher_tab_take_attendance():
                         {"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302", "stun:stun.services.mozilla.com", "stun:global.stun.twilio.com:3478"]}
                     ]
                 },
-                media_stream_constraints={"video": True, "audio": False}
+                media_stream_constraints={
+                    "video": {"facingMode": {"ideal": "environment"}},
+                    "audio": False
+                }
             )
 
             if ctx.video_processor and ctx.video_processor.detected_students:
