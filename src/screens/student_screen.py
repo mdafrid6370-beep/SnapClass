@@ -165,10 +165,39 @@ def student_screen():
     st.header('Student Portal', text_alignment='center')
     st.space()
 
-    login_tab1, login_tab2, login_tab3 = st.tabs(["🔑 Password Login", "👤 FaceID Login", "📝 Register New Student"])
+    tab_options = ["🔑 Password Login", "👤 FaceID Login", "📝 Register New Student"]
+    
+    if "active_student_portal_tab" not in st.session_state:
+        st.session_state.active_student_portal_tab = "faceid"
+
+    default_idx = 1
+    if st.session_state.active_student_portal_tab == "password":
+        default_idx = 0
+    elif st.session_state.active_student_portal_tab == "faceid":
+        default_idx = 1
+    elif st.session_state.active_student_portal_tab == "register":
+        default_idx = 2
+
+    chosen_tab_label = st.radio(
+        "Student Portal Navigation",
+        tab_options,
+        index=default_idx,
+        horizontal=True,
+        key="student_portal_nav_radio",
+        label_visibility="collapsed"
+    )
+
+    if chosen_tab_label == "🔑 Password Login":
+        st.session_state.active_student_portal_tab = "password"
+    elif chosen_tab_label == "👤 FaceID Login":
+        st.session_state.active_student_portal_tab = "faceid"
+    else:
+        st.session_state.active_student_portal_tab = "register"
+
+    st.divider()
 
     # --- TAB 1: PASSWORD LOGIN ---
-    with login_tab1:
+    if st.session_state.active_student_portal_tab == "password":
         st.subheader("Login using Application ID & Password")
         st.caption("Secure login preventing photo-spoofing attacks.")
         
@@ -194,7 +223,7 @@ def student_screen():
                 st.warning("Please fill in both Application ID and Password.")
 
     # --- TAB 2: FACEID LOGIN ---
-    with login_tab2:
+    elif st.session_state.active_student_portal_tab == "faceid":
         st.subheader("Login using FaceID")
         st.caption("Snap a photo using your phone's camera or select a face photo to verify your identity.")
         
@@ -238,47 +267,62 @@ def student_screen():
                             time.sleep(1)
                             st.rerun()
                     else:
-                        st.warning("⚠️ **Face Not Recognized!** It looks like your face is not registered in the system yet.")
-                        with st.expander("📝 **Click here to Register New Account with this Face**", expanded=True):
-                            st.caption("Complete registration using your scanned face photo.")
-                            new_app_id = st.text_input("Application ID / Roll No", placeholder="E.g. APP1001 or 10024", key="face_reg_id")
-                            new_name = st.text_input("Full Name", placeholder="E.g. Hamza Rizvi", key="face_reg_name")
-                            new_pwd = st.text_input("Create Password", type="password", placeholder="Enter password", key="face_reg_pwd")
-                            new_pwd_confirm = st.text_input("Confirm Password", type="password", placeholder="Confirm password", key="face_reg_pwd_confirm")
-                            
-                            if st.button("Complete Registration & Login", type="primary", width="stretch", key="btn_face_reg_submit"):
-                                if not new_app_id or not new_name or not new_pwd:
-                                    st.warning("Please fill in Application ID, Name, and Password!")
-                                elif new_pwd != new_pwd_confirm:
-                                    st.error("Passwords do not match!")
-                                else:
-                                    with st.spinner("Creating profile & learning face..."):
-                                        encodings = get_face_embeddings(img)
-                                        face_emb = encodings[0].tolist() if encodings else None
-                                        
-                                        response_data = create_student(
-                                            new_name=new_name,
-                                            face_embedding=face_emb,
-                                            student_id=new_app_id,
-                                            password=new_pwd
-                                        )
-                                        if response_data:
-                                            train_classifier()
-                                            st.session_state.is_logged_in = True
-                                            st.session_state.user_role = 'student'
-                                            st.session_state.student_data = response_data[0]
-                                            st.query_params["session_role"] = "student"
-                                            st.query_params["session_id"] = str(response_data[0]['student_id'])
-                                            st.toast(f"Profile Created & Logged In! Welcome {new_name}!")
-                                            time.sleep(1)
-                                            st.rerun()
-                                        else:
-                                            st.error("Failed to create profile. Application ID may already exist.")
+                        st.warning("⚠️ **Face Not Recognized!** Your face is not registered in SnapClass yet.")
+                        st.session_state["pending_reg_photo"] = photo_source
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("📝 Register Account Now (Attaches Scanned Face)", type="primary", width="stretch", key="btn_redirect_reg"):
+                                st.session_state.active_student_portal_tab = "register"
+                                st.toast("Redirecting to Registration Page...")
+                                time.sleep(0.5)
+                                st.rerun()
+                        
+                        with col2:
+                            with st.expander("Or Register Quick Form Inline", expanded=False):
+                                new_app_id = st.text_input("Application ID / Roll No", placeholder="E.g. APP1001", key="inline_reg_id")
+                                new_name = st.text_input("Full Name", placeholder="E.g. Hamza Rizvi", key="inline_reg_name")
+                                new_pwd = st.text_input("Create Password", type="password", placeholder="Enter password", key="inline_reg_pwd")
+                                new_pwd_confirm = st.text_input("Confirm Password", type="password", placeholder="Confirm password", key="inline_reg_pwd_confirm")
+                                
+                                if st.button("Complete Registration & Login", type="primary", width="stretch", key="btn_inline_reg_submit"):
+                                    if not new_app_id or not new_name or not new_pwd:
+                                        st.warning("Please fill in Application ID, Name, and Password!")
+                                    elif new_pwd != new_pwd_confirm:
+                                        st.error("Passwords do not match!")
+                                    else:
+                                        with st.spinner("Creating profile & learning face..."):
+                                            encodings = get_face_embeddings(img)
+                                            face_emb = encodings[0].tolist() if encodings else None
+                                            
+                                            response_data = create_student(
+                                                new_name=new_name,
+                                                face_embedding=face_emb,
+                                                student_id=new_app_id,
+                                                password=new_pwd
+                                            )
+                                            if response_data:
+                                                train_classifier()
+                                                st.session_state.is_logged_in = True
+                                                st.session_state.user_role = 'student'
+                                                st.session_state.student_data = response_data[0]
+                                                st.query_params["session_role"] = "student"
+                                                st.query_params["session_id"] = str(response_data[0]['student_id'])
+                                                st.toast(f"Profile Created & Logged In! Welcome {new_name}!")
+                                                time.sleep(1)
+                                                st.rerun()
+                                            else:
+                                                st.error("Failed to create profile. Application ID may already exist.")
 
     # --- TAB 3: REGISTER NEW STUDENT ---
-    with login_tab3:
+    elif st.session_state.active_student_portal_tab == "register":
         with st.container(border=True):
             st.subheader('Register New Student Profile')
+            
+            if "pending_reg_photo" in st.session_state and st.session_state.pending_reg_photo:
+                st.info("📸 **Scanned Face Photo Attached!** We pre-loaded your face photo from your FaceID scan.")
+                st.image(st.session_state.pending_reg_photo, width=180, caption="Attached Face Photo")
+
             reg_student_id = st.text_input("Application ID / Roll No", placeholder='E.g. APP1001 or 10024', key="reg_id")
             reg_name = st.text_input("Full Name", placeholder='E.g. Hamza Rizvi', key="reg_name")
             reg_pass = st.text_input("Create Password", type='password', placeholder="Enter password", key="reg_pass")
@@ -300,6 +344,8 @@ def student_screen():
             else:
                 reg_photo = st.camera_input("Capture Face Snapshot", key="reg_camera")
 
+            final_photo = reg_photo or st.session_state.get("pending_reg_photo")
+
             if st.button('Register & Create Account', type='primary', width="stretch"):
                 if not reg_student_id or not reg_name or not reg_pass:
                     st.warning('Please fill in Application ID, Name, and Password!')
@@ -308,8 +354,8 @@ def student_screen():
                 else:
                     with st.spinner('Creating profile..'):
                         face_emb = None
-                        if reg_photo:
-                            img = np.array(Image.open(reg_photo))
+                        if final_photo:
+                            img = np.array(Image.open(final_photo))
                             encodings = get_face_embeddings(img)
                             if encodings:
                                 face_emb = encodings[0].tolist()
@@ -323,6 +369,8 @@ def student_screen():
 
                         if response_data:
                             train_classifier()
+                            if "pending_reg_photo" in st.session_state:
+                                del st.session_state["pending_reg_photo"]
                             st.session_state.is_logged_in = True
                             st.session_state.user_role = 'student'
                             st.session_state.student_data = response_data[0]
