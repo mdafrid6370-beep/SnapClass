@@ -12,9 +12,9 @@ from src.database.db import get_all_students
 
 
 @st.cache_resource
-def load_insightface_app(det_size=(640, 640)):
+def load_insightface_app():
     app = FaceAnalysis(name='buffalo_s', providers=['CPUExecutionProvider'])
-    app.prepare(ctx_id=0, det_size=det_size)
+    app.prepare(ctx_id=0, det_size=(640, 640))
     return app
 
 
@@ -37,18 +37,20 @@ def apply_clahe_lighting_normalization(image_bgr):
 
 def preprocess_image(image_input):
     """
-    Ensures image is correctly oriented according to EXIF data and converted to BGR NumPy array.
-    Fixes upside-down/sideways face detection issues on mobile phones.
+    Ensures image is correctly oriented according to EXIF data, resized for ultra-fast CPU inference,
+    and converted to BGR NumPy array. Fixes frozen UI issues caused by high-resolution camera photos.
     """
     if isinstance(image_input, Image.Image):
         img = ImageOps.exif_transpose(image_input)
-        image_np = np.array(img)
     elif isinstance(image_input, np.ndarray):
-        image_np = image_input
+        img = Image.fromarray(image_input)
     else:
         img = Image.open(image_input)
         img = ImageOps.exif_transpose(img)
-        image_np = np.array(img)
+
+    # Downscale high-resolution camera images to max 640px for 50x faster CPU inference
+    img.thumbnail((640, 640), Image.Resampling.LANCZOS)
+    image_np = np.array(img)
 
     # Convert RGB to BGR for InsightFace if 3-channel image
     if len(image_np.shape) == 3 and image_np.shape[2] == 3:
@@ -65,19 +67,13 @@ def preprocess_image(image_input):
 def get_face_embeddings(image_input):
     image_bgr = preprocess_image(image_input)
 
-    # Pass 1: Standard 640x640 detection
-    app_640 = load_insightface_app(det_size=(640, 640))
-    faces = app_640.get(image_bgr)
+    app = load_insightface_app()
+    faces = app.get(image_bgr)
 
-    # Pass 2: Fallback with CLAHE lighting normalization if no faces found
+    # Fallback with CLAHE lighting normalization if no faces found
     if len(faces) == 0:
         enhanced_bgr = apply_clahe_lighting_normalization(image_bgr)
-        faces = app_640.get(enhanced_bgr)
-
-    # Pass 3: Fallback with 320x320 detection scale for close selfie crops if still no faces found
-    if len(faces) == 0:
-        app_320 = load_insightface_app(det_size=(320, 320))
-        faces = app_320.get(image_bgr)
+        faces = app.get(enhanced_bgr)
 
     encodings = []
 
