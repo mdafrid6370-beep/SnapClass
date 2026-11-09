@@ -1,4 +1,5 @@
 import streamlit as st
+import json
 from datetime import datetime
 from src.database.config import supabase
 import bcrypt
@@ -180,54 +181,176 @@ def get_session_attendance(session_id):
 # Attendance Issues & Dispute Functions
 # ----------------------------------------------------
 
+def _parse_notes_dict(notes_val):
+    if not notes_val:
+        return {}
+    if isinstance(notes_val, dict):
+        return notes_val
+    try:
+        parsed = json.loads(notes_val)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
 def create_attendance_issue(session_id, subject_id, student_id, student_name, reason="Unrecognized in session"):
-    data = {
+    now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    issue_data = {
         "session_id": session_id,
         "subject_id": subject_id,
         "student_id": str(student_id),
         "student_name": student_name,
         "reason": reason,
         "status": "pending",
-        "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        "timestamp": now_str
     }
+
+    # 1. Try dedicated table attendance_issues first
     try:
-        res = supabase.table("attendance_issues").insert(data).execute()
-        return res.data[0] if res.data else None
+        res = supabase.table("attendance_issues").insert(issue_data).execute()
+        if res.data:
+            return res.data[0]
     except Exception:
-        if "local_attendance_issues" not in st.session_state:
-            st.session_state.local_attendance_issues = []
-        data["issue_id"] = len(st.session_state.local_attendance_issues) + 1
-        st.session_state.local_attendance_issues.append(data)
-        return data
+        pass
+
+    # 2. Database persistence via attendance_sessions.notes (Supabase cloud sync)
+    if session_id:
+        try:
+            sess_res = supabase.table("attendance_sessions").select("session_id, notes").eq("session_id", session_id).execute()
+            if sess_res.data:
+                sess = sess_res.data[0]
+                notes_dict = _parse_notes_dict(sess.get("notes"))
+                disputes = notes_dict.get("disputes", [])
+                
+                issue_id = f"{session_id}_{student_id}"
+                issue_data["issue_id"] = issue_id
+
+                existing_idx = None
+                for idx, d in enumerate(disputes):
+                    if str(d.get("student_id")) == str(student_id):
+                        existing_idx = idx
+                        break
+
+                if existing_idx is not None:
+                    disputes[existing_idx] = issue_data
+                else:
+                    disputes.append(issue_data)
+
+                notes_dict["disputes"] = disputes
+                supabase.table("attendance_sessions").update({"notes": json.dumps(notes_dict)}).eq("session_id", session_id).execute()
+                return issue_data
+        except Exception:
+            pass
+
+    # 3. Fallback to local session_state if DB completely unreachable
+    if "local_attendance_issues" not in st.session_state:
+        st.session_state.local_attendance_issues = []
+    issue_data["issue_id"] = f"{session_id}_{student_id}"
+    st.session_state.local_attendance_issues.append(issue_data)
+    return issue_data
 
 def get_student_attendance_issues(student_id):
+    # 1. Try dedicated table first
     try:
         res = supabase.table("attendance_issues").select("*, subjects(*)").eq("student_id", str(student_id)).execute()
-        return res.data or []
+        if res.data:
+            return res.data
     except Exception:
-        all_issues = st.session_state.get("local_attendance_issues", [])
-        return [i for i in all_issues if str(i.get("student_id")) == str(student_id)]
+        pass
+
+    # 2. Check attendance_sessions notes from Supabase
+    found_issues = []
+    try:
+        sess_res = supabase.table("attendance_sessions").select("*, subjects(*)").not_.is_("notes", "null").execute()
+        for s in (sess_res.data or []):
+            notes_dict = _parse_notes_dict(s.get("notes"))
+            disputes = notes_dict.get("disputes", [])
+            for d in disputes:
+                if str(d.get("student_id")) == str(student_id):
+                    d_copy = dict(d)
+                    if not d_copy.get("subjects"):
+                        d_copy["subjects"] = s.get("subjects")
+                    found_issues.append(d_copy)
+    except Exception:
+        pass
+
+    if found_issues:
+        return found_issues
+
+    # 3. Local session_state fallback
+    all_issues = st.session_state.get("local_attendance_issues", [])
+    return [i for i in all_issues if str(i.get("student_id")) == str(student_id)]
 
 def get_teacher_attendance_issues(teacher_id):
+    # 1. Try dedicated table first
     try:
         res = supabase.table("attendance_issues").select("*, subjects!inner(*), students(*)").eq("subjects.teacher_id", teacher_id).execute()
-        return res.data or []
+        if res.data:
+            return res.data
     except Exception:
-        all_issues = st.session_state.get("local_attendance_issues", [])
+        pass
+
+    # 2. Check attendance_sessions notes from Supabase
+    found_issues = []
+    try:
         subjects = get_teacher_subjects(teacher_id)
-        teacher_sub_ids = [s.get('subject_id') for s in subjects]
-        return [i for i in all_issues if i.get('subject_id') in teacher_sub_ids]
+        teacher_sub_ids = [s.get('subject_id') for s in (subjects or []) if s.get('subject_id')]
+        if teacher_sub_ids:
+            sess_res = supabase.table("attendance_sessions").select("*, subjects(*)").in_("subject_id", teacher_sub_ids).not_.is_("notes", "null").execute()
+            for s in (sess_res.data or []):
+                notes_dict = _parse_notes_dict(s.get("notes"))
+                disputes = notes_dict.get("disputes", [])
+                for d in disputes:
+                    d_copy = dict(d)
+                    if not d_copy.get("subjects"):
+                        d_copy["subjects"] = s.get("subjects")
+                    found_issues.append(d_copy)
+    except Exception:
+        pass
+
+    if found_issues:
+        return found_issues
+
+    # 3. Local session_state fallback
+    all_issues = st.session_state.get("local_attendance_issues", [])
+    subjects = get_teacher_subjects(teacher_id)
+    teacher_sub_ids = [s.get('subject_id') for s in (subjects or [])]
+    return [i for i in all_issues if i.get('subject_id') in teacher_sub_ids]
 
 def resolve_attendance_issue(issue_id, status, session_id, student_id, subject_id):
     now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    # 1. Try dedicated table
     try:
         supabase.table("attendance_issues").update({"status": status}).eq("issue_id", issue_id).execute()
     except Exception:
-        all_issues = st.session_state.get("local_attendance_issues", [])
-        for i in all_issues:
-            if i.get("issue_id") == issue_id:
-                i["status"] = status
+        pass
 
+    # 2. Try attendance_sessions notes in Supabase
+    if session_id:
+        try:
+            sess_res = supabase.table("attendance_sessions").select("session_id, notes").eq("session_id", session_id).execute()
+            if sess_res.data:
+                sess = sess_res.data[0]
+                notes_dict = _parse_notes_dict(sess.get("notes"))
+                disputes = notes_dict.get("disputes", [])
+                updated = False
+                for d in disputes:
+                    if str(d.get("issue_id")) == str(issue_id) or (str(d.get("student_id")) == str(student_id) and str(d.get("session_id")) == str(session_id)):
+                        d["status"] = status
+                        updated = True
+                if updated:
+                    notes_dict["disputes"] = disputes
+                    supabase.table("attendance_sessions").update({"notes": json.dumps(notes_dict)}).eq("session_id", session_id).execute()
+        except Exception:
+            pass
+
+    # 3. Update local session state
+    all_issues = st.session_state.get("local_attendance_issues", [])
+    for i in all_issues:
+        if str(i.get("issue_id")) == str(issue_id) or (str(i.get("student_id")) == str(student_id) and str(i.get("session_id")) == str(session_id)):
+            i["status"] = status
+
+    # 4. If approved, update or insert into attendance_logs so student gets marked PRESENT!
     if status == "approved" and session_id and student_id:
         try:
             existing = supabase.table("attendance_logs").select("*").eq("session_id", session_id).eq("student_id", str(student_id)).execute()

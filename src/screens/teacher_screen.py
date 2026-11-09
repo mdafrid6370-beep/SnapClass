@@ -806,13 +806,13 @@ def teacher_tab_attendance_issues():
                     st.caption(f"Filed at: {ts}")
 
                 with c_action1:
-                    if st.button("✅ Approve", key=f"app_{issue_id}", type="primary", width="stretch"):
+                    if st.button("✅ Approve", key=f"app_{issue_id}_{session_id}_{student_id}", type="primary", width="stretch"):
                         resolve_attendance_issue(issue_id, "approved", session_id, student_id, subject_id)
                         st.toast(f"Approved attendance for {student_name}!")
                         st.rerun()
 
                 with c_action2:
-                    if st.button("❌ Reject", key=f"rej_{issue_id}", type="secondary", width="stretch"):
+                    if st.button("❌ Reject", key=f"rej_{issue_id}_{session_id}_{student_id}", type="secondary", width="stretch"):
                         resolve_attendance_issue(issue_id, "rejected", session_id, student_id, subject_id)
                         st.toast(f"Rejected issue for {student_name}.")
                         st.rerun()

@@ -102,7 +102,7 @@ def student_dashboard():
     st.caption('View session attendance alerts. If you were present but unrecognized in class, raise an issue for teacher review.')
 
     issues = get_student_attendance_issues(student_id)
-    issue_map = {i.get('session_id'): i for i in issues if i.get('session_id')}
+    issue_map = {str(i.get('session_id')): i for i in issues if i.get('session_id') is not None}
 
     if logs:
         # Group logs by session_id or timestamp
@@ -125,7 +125,7 @@ def student_dashboard():
                     if is_present:
                         st.success("Attendance Verified")
                     else:
-                        existing_issue = issue_map.get(sess_id)
+                        existing_issue = issue_map.get(str(sess_id))
                         if existing_issue:
                             st_val = existing_issue.get('status', 'pending')
                             if st_val == 'approved':
