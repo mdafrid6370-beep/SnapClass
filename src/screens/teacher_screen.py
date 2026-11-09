@@ -24,6 +24,10 @@ from datetime import datetime
 import pandas as pd
 
 from src.database.config import supabase
+try:
+    from src.utils.report_generator import generate_excel_report, generate_pdf_report
+except Exception:
+    generate_excel_report, generate_pdf_report = None, None
 
 
 class SessionAutoCloser:
@@ -551,15 +555,26 @@ def teacher_tab_attendance_records():
 
     raw_df = df[['Date/Time', 'Subject', 'Subject Code', 'Student ID', 'Student Name', 'Status']].sort_values(by="Status", ascending=False).drop_duplicates(subset=['Date/Time', 'Subject Code', 'Student ID'], keep='first')
 
-    # Generate Excel and PDF bytes
-    teacher_data = st.session_state.get('teacher_data', {})
-    teacher_name = teacher_data.get('name', 'Instructor')
+    # Generate Excel and PDF bytes safely
+    teacher_info = st.session_state.get('teacher_data') or {}
+    teacher_name = teacher_info.get('name', 'Instructor') if isinstance(teacher_info, dict) else 'Instructor'
     subj_list = [str(s) for s in df['Subject'].unique() if s and s != 'N/A']
     report_subject_name = ", ".join(subj_list) if subj_list else "All Subjects"
 
-    from src.utils.report_generator import generate_excel_report, generate_pdf_report
-    excel_bytes = generate_excel_report(student_summary, raw_df, subject_name=report_subject_name)
-    pdf_bytes = generate_pdf_report(student_summary, teacher_name=teacher_name, subject_name=report_subject_name)
+    excel_bytes = None
+    pdf_bytes = None
+
+    if generate_excel_report is not None:
+        try:
+            excel_bytes = generate_excel_report(student_summary, raw_df, subject_name=report_subject_name)
+        except Exception:
+            excel_bytes = None
+
+    if generate_pdf_report is not None:
+        try:
+            pdf_bytes = generate_pdf_report(student_summary, teacher_name=teacher_name, subject_name=report_subject_name)
+        except Exception:
+            pdf_bytes = None
 
     with exp1:
         csv_raw = raw_df.to_csv(index=False)
@@ -572,14 +587,15 @@ def teacher_tab_attendance_records():
             width="stretch"
         )
         
-        st.download_button(
-            label="📗 Download Excel Summary (.xlsx)",
-            data=excel_bytes,
-            file_name=f"attendance_summary_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="primary",
-            width="stretch"
-        )
+        if excel_bytes:
+            st.download_button(
+                label="📗 Download Excel Summary (.xlsx)",
+                data=excel_bytes,
+                file_name=f"attendance_summary_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="primary",
+                width="stretch"
+            )
 
     with exp2:
         csv_summary = student_summary.to_csv(index=False)
@@ -592,14 +608,15 @@ def teacher_tab_attendance_records():
             width="stretch"
         )
 
-        st.download_button(
-            label="📕 Download Official PDF Report (.pdf)",
-            data=pdf_bytes,
-            file_name=f"official_attendance_report_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf",
-            type="primary",
-            width="stretch"
-        )
+        if pdf_bytes:
+            st.download_button(
+                label="📕 Download Official PDF Report (.pdf)",
+                data=pdf_bytes,
+                file_name=f"official_attendance_report_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                type="primary",
+                width="stretch"
+            )
 
 
 
