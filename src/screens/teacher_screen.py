@@ -334,7 +334,7 @@ def teacher_tab_take_attendance():
 
                 for idx, img in enumerate(st.session_state.attendance_images):
                     img_np = np.array(img.convert('RGB'))
-                    detected, _, _ = predict_attendance(img_np)
+                    detected, *_ = predict_attendance(img_np)
 
 
                     if detected:
@@ -552,9 +552,14 @@ def teacher_tab_attendance_records():
     raw_df = df[['Date/Time', 'Subject', 'Subject Code', 'Student ID', 'Student Name', 'Status']].sort_values(by="Status", ascending=False).drop_duplicates(subset=['Date/Time', 'Subject Code', 'Student ID'], keep='first')
 
     # Generate Excel and PDF bytes
+    teacher_data = st.session_state.get('teacher_data', {})
+    teacher_name = teacher_data.get('name', 'Instructor')
+    subj_list = [str(s) for s in df['Subject'].unique() if s and s != 'N/A']
+    report_subject_name = ", ".join(subj_list) if subj_list else "All Subjects"
+
     from src.utils.report_generator import generate_excel_report, generate_pdf_report
-    excel_bytes = generate_excel_report(student_summary, raw_df, subject_name=selected_subject['name'])
-    pdf_bytes = generate_pdf_report(student_summary, teacher_name=teacher_data.get('name', 'Instructor'), subject_name=selected_subject['name'])
+    excel_bytes = generate_excel_report(student_summary, raw_df, subject_name=report_subject_name)
+    pdf_bytes = generate_pdf_report(student_summary, teacher_name=teacher_name, subject_name=report_subject_name)
 
     with exp1:
         csv_raw = raw_df.to_csv(index=False)

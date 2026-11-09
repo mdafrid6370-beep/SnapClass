@@ -64,8 +64,64 @@ def preprocess_image(image_input):
     return image_bgr
 
 
-def get_face_embeddings(image_input):
+def check_face_occlusion_and_pose(face, img_w, img_h):
+    """
+    Analyzes InsightFace facial keypoints, pose, bounding box, and detection score.
+    Returns: (is_valid, warning_message)
+    Detects:
+    - Half-covered / occluded faces (hands, masks, cloth over face)
+    - Sideways turned faces (|yaw| > 35 degrees)
+    - Edge-cropped / cut-off faces at screen borders
+    """
+    bbox = face.bbox.astype(int)
+    x1, y1, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
+
+    # 1. Edge crop check (face cut off at screen border)
+    margin = 5
+    if x1 <= margin or y1 <= margin or x2 >= (img_w - margin) or y2 >= (img_h - margin):
+        return False, "Face is cut off at the camera border. Please center your face in the frame."
+
+    w = x2 - x1
+    h = y2 - y1
+    if h <= 0 or w <= 0:
+        return False, "Invalid face detection bounds."
+
+    # 2. Aspect ratio check (half-face or severe angle)
+    aspect = w / float(h)
+    if aspect < 0.48 or aspect > 1.25:
+        return False, "Half of your face is covered or obscured."
+
+    # 3. Head Pose (Yaw / Pitch) check
+    if hasattr(face, 'pose') and face.pose is not None:
+        pitch, yaw, roll = face.pose
+        if abs(yaw) > 35.0:
+            return False, "Face is turned too far to the side. Please look directly at the camera."
+        if abs(pitch) > 30.0:
+            return False, "Face is tilted too far up or down. Please look straight ahead."
+
+    # 4. Keypoint Symmetry check (5 keypoints: Left Eye, Right Eye, Nose, Left Mouth, Right Mouth)
+    if hasattr(face, 'kps') and face.kps is not None and len(face.kps) == 5:
+        kps = face.kps
+        left_eye, right_eye, nose = kps[0], kps[1], kps[2]
+
+        dist_l_eye_nose = abs(nose[0] - left_eye[0])
+        dist_r_eye_nose = abs(right_eye[0] - nose[0])
+        if dist_l_eye_nose > 0 and dist_r_eye_nose > 0:
+            ratio = dist_l_eye_nose / float(dist_r_eye_nose)
+            if ratio < 0.35 or ratio > 2.85:
+                return False, "Half of your face is covered or turned away."
+
+    # 5. Detection Score
+    det_score = getattr(face, 'det_score', 1.0)
+    if det_score < 0.45:
+        return False, "Face is unclear or partially covered."
+
+    return True, None
+
+
+def get_face_embeddings_with_quality(image_input):
     image_bgr = preprocess_image(image_input)
+    img_h, img_w = image_bgr.shape[:2]
 
     app = load_insightface_app()
     faces = app.get(image_bgr)
@@ -76,16 +132,26 @@ def get_face_embeddings(image_input):
         faces = app.get(enhanced_bgr)
 
     encodings = []
+    quality_warnings = []
 
     for face in faces:
-        # normed_embedding is a 512-d normalized L2 embedding vector
+        is_valid, warn_msg = check_face_occlusion_and_pose(face, img_w, img_h)
+        if not is_valid and warn_msg:
+            quality_warnings.append(warn_msg)
+
         if hasattr(face, 'normed_embedding') and face.normed_embedding is not None:
-            encodings.append(face.normed_embedding)
+            encodings.append((face.normed_embedding, is_valid, warn_msg))
         elif hasattr(face, 'embedding') and face.embedding is not None:
             norm = np.linalg.norm(face.embedding)
-            encodings.append(face.embedding / norm if norm > 0 else face.embedding)
+            enc = face.embedding / norm if norm > 0 else face.embedding
+            encodings.append((enc, is_valid, warn_msg))
 
-    return encodings
+    return encodings, len(faces), quality_warnings
+
+
+def get_face_embeddings(image_input):
+    items, _, _ = get_face_embeddings_with_quality(image_input)
+    return [item[0] for item in items]
 
 
 @st.cache_resource
@@ -139,23 +205,27 @@ def train_classifier():
 
 
 def predict_attendance(class_image_np):
-    encodings = get_face_embeddings(class_image_np)
+    items, num_faces, quality_warnings = get_face_embeddings_with_quality(class_image_np)
 
     detected_student = {}
-
     vector_data = get_student_face_vectors()
 
-    if not vector_data:
-        return detected_student, [], len(encodings)
+    # Return primary occlusion warning if any face is invalid/half-covered
+    occlusion_warning = quality_warnings[0] if quality_warnings else None
+
+    if not vector_data or len(items) == 0:
+        return detected_student, [], num_faces, occlusion_warning
     
     X_train = vector_data['X']
     y_train = vector_data['y']
 
     all_students = sorted(list(set(y_train)))
-    # Cosine similarity threshold for InsightFace ArcFace (range -1.0 to 1.0; >= 0.38 is match)
     similarity_threshold = 0.38
 
-    for encoding in encodings:
+    for encoding, is_valid, _ in items:
+        if not is_valid:
+            continue
+
         encoding_arr = np.array(encoding, dtype=np.float64)
         norm = np.linalg.norm(encoding_arr)
         if norm > 0:
@@ -167,11 +237,10 @@ def predict_attendance(class_image_np):
 
         if max_similarity >= similarity_threshold:
             predicted_id = y_train[best_idx]
-            # Store best match similarity score
             if predicted_id not in detected_student or max_similarity > detected_student[predicted_id]:
                 detected_student[predicted_id] = float(max_similarity)
 
-    return detected_student, all_students, len(encodings)
+    return detected_student, all_students, num_faces, occlusion_warning
 
 
 

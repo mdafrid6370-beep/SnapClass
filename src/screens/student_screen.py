@@ -252,12 +252,14 @@ def student_screen():
             img = np.array(Image.open(photo_source))
 
             with st.spinner('AI is scanning..'):
-                detected, all_ids, num_faces = predict_attendance(img)
+                detected, all_ids, num_faces, occlusion_warning = predict_attendance(img)
 
                 if num_faces == 0:
                     st.warning('Face not found!')
                 elif num_faces > 1:
                     st.warning('Multiple faces found')
+                elif occlusion_warning:
+                    st.warning(f'⚠️ **Face Quality Alert:** {occlusion_warning}')
                 else:
                     if detected:
                         student_id = list(detected.keys())[0]
